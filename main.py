@@ -5,7 +5,7 @@ Main FastAPI Application - v7 (Final - All Fixes Applied)
 
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
 from typing import Optional
 import anthropic
 import base64
@@ -35,6 +35,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─── UI (index.html) ───────────────────────────────────────────────────────────
+
+@app.get("/")
+async def serve_index():
+    index_path = os.path.join(os.path.dirname(__file__), "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path, media_type="text/html; charset=utf-8")
+    raise HTTPException(status_code=404, detail="index.html not found")
 
 # ─── 한글 폰트 등록 ───────────────────────────────────────────────────────────
 
