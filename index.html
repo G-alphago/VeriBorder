@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VeriBorder — 화장품 수출 규제 분석</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a1a; min-height: 100vh; }
+
+  header { background: #fff; border-bottom: 1px solid #e5e5e0; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header p { font-size: 13px; color: #888; }
+  .badge { background: #eaf3de; color: #3B6D11; font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+
+  .container { max-width: 960px; margin: 32px auto; padding: 0 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e5e5e0; padding: 24px; }
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+
+  .upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fafafa;
+    position: relative;
+  }
+  .upload-area:hover, .upload-area.dragover { border-color: #378ADD; background: #f0f7ff; }
+  .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-area p { font-size: 14px; color: #666; }
+  .upload-area span { font-size: 12px; color: #aaa; margin-top: 6px; display: block; }
+
+  #preview-container { margin-top: 16px; display: none; }
+  #preview-img { width: 100%; max-height: 250px; object-fit: contain; border-radius: 8px; border: 1px solid #e5e5e0; }
+  .preview-name { font-size: 12px; color: #888; margin-top: 6px; text-align: center; }
+  .preview-actions { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  button.delete-preview { padding: 8px 14px; font-size: 13px; background: #fff; color: #cc3333; border: 1.5px solid #cc3333; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+  button.delete-preview:hover { background: #fff5f5; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab { padding: 8px 16px; border-radius: 8px; border: 1px solid #e5e5e0; font-size: 13px; cursor: pointer; background: #fff; transition: all 0.2s; }
+  .tab.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 6px; margin-top: 14px; }
+  select, textarea, input[type="text"] { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; background: #fafafa; }
+  select:focus, textarea:focus, input:focus { outline: none; border-color: #378ADD; background: #fff; }
+  textarea { resize: vertical; min-height: 90px; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+  button.primary { flex: 1; padding: 13px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  button.primary:hover { background: #333; }
+  button.primary:disabled { background: #999; cursor: not-allowed; }
+  button.secondary { padding: 13px 16px; background: #fff; color: #1a1a1a; border: 1.5px solid #1a1a1a; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  button.secondary:hover { background: #f5f5f0; }
+  button.secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* 리포트 출력 */
+  .report-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .report-header h2 { font-size: 15px; font-weight: 600; margin: 0; }
+
+  #report-output {
+    background: #f9f9f6;
+    border: 1px solid #e5e5e0;
+    border-radius: 8px;
+    padding: 24px;
+    font-size: 13px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    min-height: 300px;
+    color: #1a1a1a;
+    font-family: inherit;
+    overflow-y: auto;
+    max-height: 700px;
+  }
+  #report-output.empty { color: #bbb; font-style: italic; text-align: center; padding-top: 80px; font-size: 14px; }
+
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
+  .spinner-dark { border-color: #1a1a1a; border-top-color: transparent; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🌐 VeriBorder</h1>
+    <p>화장품 수출 규제 AI 분석 플랫폼</p>
+  </div>
+  <span class="badge">Beta v4.0</span>
+</header>
+
+<div class="container">
+
+  <!-- 입력 패널 -->
+  <div class="card">
+    <h2>📦 분석 설정</h2>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('image', event)">📷 사진 업로드</button>
+      <button class="tab" onclick="switchTab('text', event)">✏️ 직접 입력</button>
+    </div>
+
+    <div id="tab-image">
+      <div class="upload-area" id="upload-area">
+        <input type="file" id="image-input" accept="image/*" onchange="handleImageUpload(event)">
+        <div class="upload-icon">📸</div>
+        <p>성분표 사진을 업로드하세요</p>
+        <span>JPG, PNG, WEBP · 클릭 또는 드래그</span>
+      </div>
+      <div id="preview-container">
+        <img id="preview-img" src="" alt="업로드된 성분표">
+        <p class="preview-name" id="preview-name"></p>
+        <div class="preview-actions">
+          <button type="button" class="delete-preview" onclick="clearImage()">🗑️ 사진 삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-text" class="hidden">
+      <label>성분 목록 (INCI 형식)</label>
+      <textarea id="text-ingredients" placeholder="Water, Niacinamide, Glycerin, ..."></textarea>
+    </div>
+
+    <label>제품명 (선택)</label>
+    <input type="text" id="product-name" placeholder="예: Glow Serum 30ml">
+
+    <label>분석 국가</label>
+    <select id="country">
+      <option value="USA">🇺🇸 United States (MoCRA / FD&C)</option>
+      <option value="Japan">🇯🇵 Japan (PMD Act)</option>
+      <option value="Other">🌍 기타 국가</option>
+    </select>
+
+    <label>판매 플랫폼 (선택)</label>
+    <select id="platform">
+      <option value="">선택 안함</option>
+      <option value="Amazon">Amazon</option>
+      <option value="Qoo10">Qoo10</option>
+      <option value="eBay">eBay</option>
+      <option value="Shopee">Shopee</option>
+    </select>
+
+    <label>광고 문구 (선택)</label>
+    <textarea id="claims" style="min-height:60px" placeholder="예: Reduces wrinkles, Anti-aging..."></textarea>
+
+    <div class="btn-row">
+      <button class="primary" id="analyze-btn" onclick="analyze()">🔍 규제 분석 시작</button>
+    </div>
+  </div>
+
+  <!-- 리포트 출력 패널 -->
+  <div class="card">
+    <div class="report-header">
+      <h2>📋 VeriBorder 분석 리포트</h2>
+      <button class="secondary" id="pdf-btn" onclick="downloadPDF()" disabled>
+        📄 PDF 다운로드
+      </button>
+    </div>
+    <div id="report-output" class="empty">성분표 사진을 업로드하고
+분석 버튼을 눌러주세요.</div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE = "http://localhost:8000";
+let currentTab = "image";
+let uploadedFile = null;
+let lastReport = "";
+
+function switchTab(tab, event) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-image').classList.toggle('hidden', tab !== 'image');
+  document.getElementById('tab-text').classList.toggle('hidden', tab !== 'text');
+}
+
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  uploadedFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('preview-name').textContent = file.name;
+    document.getElementById('preview-container').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  uploadedFile = null;
+  document.getElementById('preview-img').src = '';
+  document.getElementById('preview-name').textContent = '';
+  document.getElementById('preview-container').style.display = 'none';
+  document.getElementById('image-input').value = '';
+}
+
+const uploadArea = document.getElementById('upload-area');
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadArea.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    uploadedFile = file;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      document.getElementById('preview-img').src = ev.target.result;
+      document.getElementById('preview-name').textContent = file.name;
+      document.getElementById('preview-container').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+async function analyze() {
+  const btn = document.getElementById("analyze-btn");
+  const output = document.getElementById("report-output");
+  const pdfBtn = document.getElementById("pdf-btn");
+
+  if (currentTab === 'image' && !uploadedFile) { alert("성분표 사진을 먼저 업로드해주세요."); return; }
+  if (currentTab === 'text' && !document.getElementById('text-ingredients').value.trim()) { alert("성분 목록을 입력해주세요."); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>AI 분석 중... (30초~1분)';
+  pdfBtn.disabled = true;
+  output.className = "";
+  output.textContent = "⏳ 성분표를 분석하고 있습니다...\n잠시만 기다려주세요.";
+
+  try {
+    const formData = new FormData();
+    formData.append('country', document.getElementById('country').value);
+    formData.append('platform', document.getElementById('platform').value || '');
+    formData.append('product_name', document.getElementById('product-name').value || 'Unnamed Product');
+    formData.append('product_claims', document.getElementById('claims').value || '');
+
+    let url;
+    if (currentTab === 'image') {
+      formData.append('file', uploadedFile);
+      url = `${API_BASE}/api/analyze/image`;
+    } else {
+      formData.append('ingredients', document.getElementById('text-ingredients').value);
+      url = `${API_BASE}/api/analyze/text`;
+    }
+
+    const response = await fetch(url, { method: "POST", body: formData });
+    const data = await response.json();
+
+    if (data.success) {
+      output.textContent = data.report;
+      lastReport = data.report;
+      pdfBtn.disabled = false; // PDF 버튼 활성화
+    } else {
+      output.textContent = "❌ 오류: " + (data.detail || "알 수 없는 오류");
+    }
+
+  } catch (err) {
+    output.textContent = "❌ 오류: " + err.message + "\n\nAPI 서버(main.py)가 실행 중인지 확인해주세요.";
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "🔍 규제 분석 시작";
+  }
+}
+
+async function downloadPDF() {
+  if (!lastReport) return;
+
+  const pdfBtn = document.getElementById("pdf-btn");
+  pdfBtn.disabled = true;
+  pdfBtn.innerHTML = '<span class="spinner spinner-dark"></span>PDF 생성 중...';
+
+  try {
+    const formData = new FormData();
+    formData.append('report', lastReport);
+    formData.append('product_name', document.getElementById('product-name').value || 'Product');
+    formData.append('country', document.getElementById('country').value);
+    formData.append('platform', document.getElementById('platform').value || '');
+
+    const response = await fetch(`${API_BASE}/api/export/pdf`, {
+      method: "POST",
+      body: formData
+    });
+
+    if (!response.ok) throw new Error("PDF 생성 실패");
+
+    // PDF 파일 다운로드
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `VeriBorder_Report_${new Date().toISOString().slice(0,10)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+  } catch (err) {
+    alert("PDF 생성 오류: " + err.message);
+  } finally {
+    pdfBtn.disabled = false;
+    pdfBtn.innerHTML = "📄 PDF 다운로드";
+  }
+}
+</script>
+</body>
+</html>
