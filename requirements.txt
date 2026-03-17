@@ -5,4 +5,3 @@ python-dotenv
 python-multipart
 pydantic
 reportlab
-# force rebuild Mon Mar 16 15:31:18 KST 2026
