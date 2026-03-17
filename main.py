@@ -6,6 +6,7 @@ Main FastAPI Application - v7 (Final - All Fixes Applied)
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Optional
 import anthropic
 import base64
@@ -27,6 +28,9 @@ except ModuleNotFoundError:
     REPORTLAB_AVAILABLE = False
 
 app = FastAPI(title="VeriBorder API", version="7.0.0")
+@app.get("/")
+async def serve_index():
+    return FileResponse("index.html")
 
 app.add_middleware(
     CORSMiddleware,
